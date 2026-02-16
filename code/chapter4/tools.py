@@ -3,8 +3,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os
-from serpapi import SerpApiClient
-from typing import Dict, Any
+from typing import Any, Dict
 
 def search(query: str) -> str:
     """
@@ -17,24 +16,53 @@ def search(query: str) -> str:
         if not api_key:
             return "错误：SERPAPI_API_KEY 未在 .env 文件中配置。"
 
-        params = {
+        params: Dict[str, Any] = {
             "engine": "google",
             "q": query,
-            "api_key": api_key,
             "gl": "cn",  # 国家代码
-            "hl": "zh-cn", # 语言代码
+            "hl": "zh-cn",  # 语言代码
         }
+
+        # 兼容不同的 `serpapi` Python 包实现。
+        try:
+            from serpapi import SerpApiClient  # type: ignore
+
+            results = SerpApiClient({**params, "api_key": api_key}).get_dict()
+        except Exception:
+            import serpapi
+
+            results_obj = serpapi.Client(api_key=api_key).search(params)
+            results = results_obj.as_dict() if hasattr(results_obj, "as_dict") else results_obj
         
-        client = SerpApiClient(params)
-        results = client.get_dict()
-        
+        # 股价/价格类问题：优先找金融结果，避免直接返回公司简介。
+        wants_price = any(k in query for k in ("股价", "价格", "多少钱", "市值", "市盈率", "报价"))
+        if wants_price:
+            finance = results.get("finance_results")
+            if isinstance(finance, dict) and finance.get("price"):
+                currency = finance.get("currency") or ""
+                stock = finance.get("stock") or finance.get("ticker") or ""
+                exchange = finance.get("exchange") or ""
+                title = " ".join([x for x in [stock, exchange] if x]).strip()
+                header = f"{title} " if title else ""
+                return f"{header}{finance['price']}{currency}".strip()
+
+            answer_box = results.get("answer_box")
+            if isinstance(answer_box, dict):
+                if answer_box.get("price"):
+                    return str(answer_box["price"])
+                if answer_box.get("answer"):
+                    return str(answer_box["answer"])
+                if answer_box.get("snippet"):
+                    return str(answer_box["snippet"])
+
         # 智能解析：优先寻找最直接的答案
         if "answer_box_list" in results:
             return "\n".join(results["answer_box_list"])
         if "answer_box" in results and "answer" in results["answer_box"]:
             return results["answer_box"]["answer"]
-        if "knowledge_graph" in results and "description" in results["knowledge_graph"]:
-            return results["knowledge_graph"]["description"]
+        if not wants_price:
+            if "knowledge_graph" in results and "description" in results["knowledge_graph"]:
+                return results["knowledge_graph"]["description"]
         if "organic_results" in results and results["organic_results"]:
             # 如果没有直接答案，则返回前三个有机结果的摘要
             snippets = [
