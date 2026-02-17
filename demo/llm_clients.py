@@ -43,6 +43,8 @@ class HelloAgentsLLM:
 
         self.client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
 
+
+    # Call the LLM with a list of messages and return the response.
     def think(
         self,
         messages: List[Dict[str, str]],

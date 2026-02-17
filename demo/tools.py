@@ -7,17 +7,15 @@ load_dotenv()
 
 
 def _serpapi_get_dict(params: Dict[str, Any], api_key: str) -> Dict[str, Any]:
-    """兼容不同的 `serpapi` Python 包实现，统一返回 dict。"""
-    # 旧教程常用：`google-search-results` 包提供 `SerpApiClient`。
+    """call SerpAPI (Google) with params and return a dict."""
     try:
-        from serpapi import SerpApiClient  # type: ignore
+        from serpapi import SerpApiClient
 
         client = SerpApiClient({**params, "api_key": api_key})
         return client.get_dict()
     except Exception:
         pass
 
-    # 你当前装的：`serpapi==0.1.5`，提供 `serpapi.Client` + `SerpResults.as_dict()`。
     import serpapi
 
     client = serpapi.Client(api_key=api_key)
@@ -30,7 +28,7 @@ def _serpapi_get_dict(params: Dict[str, Any], api_key: str) -> Dict[str, Any]:
 
 
 def search(query: str) -> str:
-    """调用 SerpAPI（Google）搜索并返回摘要。"""
+    """call SerpAPI (Google) to search and return a summary."""
     print(f"🔍 calling [SerpApi]: {query}")
     try:
         api_key = os.getenv("SERPAPI_API_KEY")
@@ -71,11 +69,14 @@ class ToolsExecutor:
 
     def registerTool(self, name: str, description: str, func: Callable[..., Any]) -> None:
         self.tools[name] = {"description": description, "func": func}
-        print(f"✅ 工具 {name} 已注册")
+        print(f"✅ tool {name} registered")
 
     def getTool(self, name: str) -> Callable[..., Any] | None:
         return self.tools.get(name, {}).get("func")
 
+    """
+    get all available tools description
+    """
     def getAvailableTools(self) -> str:
         return "\n".join(
             [
@@ -102,7 +103,7 @@ if __name__ == '__main__':
     # 4. test action
     print("\n ---✅ test tool call ---")
     tool_name = "Search"
-    tool_input = "上海今天天气如何"
+    tool_input = "What is the weather in Shanghai today?"
     tool_function = toolsExecutor.getTool(tool_name)
     if tool_function:
         observation = tool_function(tool_input)
