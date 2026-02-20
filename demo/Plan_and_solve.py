@@ -108,7 +108,7 @@ if __name__ == '__main__':
   try:
     llm_client = HelloAgentsLLM()
     agent = PlanAndSolveAgent(llm_client)
-    question = "帮我写一个 Python 函数，输入一个列表，返回其中出现次数最多的元素和出现次数"
+    question = "How to become an agent developer?"
     agent.run(question)
   except ValueError as e:
     print(e)
